@@ -1,0 +1,31 @@
+{
+    "messages": [
+        {
+            "type": "fatal",
+            "symbol": "parse-error",
+            "message": "error while code parsing: Unable to load file cesium\\__init__.py:\n[Errno 2] No such file or directory: 'cesium\\\\__init__.py'",
+            "messageId": "F0010",
+            "confidence": "UNDEFINED",
+            "module": "cesium",
+            "obj": "",
+            "line": 1,
+            "column": 0,
+            "endLine": null,
+            "endColumn": null,
+            "path": "cesium\\__init__.py",
+            "absolutePath": "cesium\\__init__.py"
+        }
+    ],
+    "statistics": {
+        "messageTypeCount": {
+            "fatal": 1,
+            "error": 0,
+            "warning": 0,
+            "refactor": 0,
+            "convention": 0,
+            "info": 0
+        },
+        "modulesLinted": 3,
+        "score": 0
+    }
+}
