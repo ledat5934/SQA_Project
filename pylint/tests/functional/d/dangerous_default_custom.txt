@@ -1,0 +1,2 @@
+dangerous-default-value:14:0:14:17:mutate_custom:Dangerous default value CustomBuffer() (pylint.tests.functional.d.dangerous_default_custom.CustomBuffer) as argument:UNDEFINED
+

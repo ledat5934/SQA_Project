@@ -1,0 +1,6 @@
+swallowed-exception:11:4:12:12::Swallowed exception for Exception; handler only performs no-op statements:HIGH
+empty-except-body:11:4:12:12::Empty exception handler for Exception:HIGH
+empty-except-body:18:4:19:12::Empty exception handler for ValueError:HIGH
+swallowed-exception:25:4:26:44::Swallowed exception for Exception; handler only performs no-op statements:HIGH
+empty-except-body:25:4:26:44::Empty exception handler for Exception:HIGH
+

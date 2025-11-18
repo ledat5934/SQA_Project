@@ -1,0 +1,186 @@
+# Adapted from https://github.com/scikit-image/scikit-image/blob/main/.github/workflows/wheel_tests_and_release.yml
+
+name: Build Wheels and Release
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - maintenance/**
+      - '!main'
+
+env:
+  CIBW_BUILD_VERBOSITY: 2
+  CIBW_BEFORE_BUILD: pip install numpy
+  CIBW_TEST_REQUIRES: "-r requirements.txt pytest"
+  CIBW_TEST_COMMAND: pytest --pyargs cesium
+  CIBW_ENVIRONMENT: PIP_PREFER_BINARY=1
+
+permissions:
+  contents: read
+
+jobs:
+  build_linux_wheels:
+    name: Build python ${{ matrix.cibw_python }} ${{ matrix.cibw_arch }} wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        cibw_python: ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        cibw_manylinux: [manylinux2014]
+        cibw_arch: ["x86_64"]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v3
+        name: Install Python
+        with:
+          python-version: '3.12'
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel
+      - name: Build the wheel
+        run: |
+          python -m cibuildwheel --output-dir dist
+        env:
+          CIBW_BUILD: ${{ matrix.cibw_python }}
+          CIBW_ARCHS_LINUX: ${{ matrix.cibw_arch }}
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.cibw_manylinux }}
+          CIBW_ENVIRONMENT_PASS_LINUX: CESIUM_LINK_FLAGS
+          CESIUM_LINK_FLAGS: "-Wl,--strip-debug"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-${{ matrix.cibw_arch }}-${{ strategy.job-index }}
+          path: ./dist/*.whl
+
+  build_macos_wheels:
+    name: Build python ${{ matrix.cibw_python }} ${{ matrix.cibw_arch }} wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest]
+        cibw_python: ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        cibw_arch: [ "x86_64", "arm64"] #, "universal2"]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v3
+        name: Install Python
+        with:
+          python-version: '3.12'
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel
+
+      - name: Build wheels for CPython Mac OS
+        run: |
+          if [[ "$CIBW_ARCHS_MACOS" == arm64 ]]; then
+              # SciPy requires 12.0 on arm to prevent kernel panics
+              # https://github.com/scipy/scipy/issues/14688
+              # so being conservative, we just do the same here
+              export MACOSX_DEPLOYMENT_TARGET=12.0
+          else
+              export MACOSX_DEPLOYMENT_TARGET=10.9
+          fi
+
+          echo MACOSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET}
+
+          python -m cibuildwheel --output-dir dist
+        env:
+          CIBW_BUILD: ${{ matrix.cibw_python }}
+          CIBW_ARCHS_MACOS: ${{ matrix.cibw_arch }}
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux1
+          CIBW_TEST_SKIP: "*-macosx_arm64"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.cibw_arch }}-${{ strategy.job-index }}
+          path: ./dist/*.whl
+
+  build_windows_wheels:
+    name: Build python ${{ matrix.cibw_python }} ${{ matrix.cibw_arch }} wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        cibw_python: ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        cibw_arch: ["AMD64"]
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v3
+        name: Install Python
+        with:
+          python-version: '3.12'
+
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel
+
+      - name: Build Windows wheels for CPython
+        run: |
+          python -m cibuildwheel --output-dir dist
+        env:
+          CIBW_BUILD: ${{ matrix.cibw_python }}
+          CIBW_ARCHS_WINDOWS: ${{ matrix.cibw_arch }}
+          # -Wl,-S equivalent to gcc's -Wl,--strip-debug
+          LDFLAGS: "-Wl,-S"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-${{ matrix.cibw_arch }}-${{ strategy.job-index }}
+          path: ./dist/*.whl
+
+  deploy:
+    name: Release
+    needs: [build_linux_wheels, build_macos_wheels, build_windows_wheels]
+    if: github.repository_owner == 'cesium-ml' && startsWith(github.ref, 'refs/tags/v') && always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # for softprops/action-gh-release to create GitHub release
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        name: Install Python
+        with:
+          python-version: '3.10'
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build numpy cython setuptools_scm
+
+      - name: Build the source distribution
+        run: |
+          pyproject-build . --sdist --no-isolation --skip-dependency-check
+          ls -la ${{ github.workspace }}/dist
+
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: ./dist
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # v1.8.14
+
+      - name: Github release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

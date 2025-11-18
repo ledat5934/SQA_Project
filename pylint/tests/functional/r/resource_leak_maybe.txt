@@ -1,0 +1,6 @@
+consider-using-with:9:9:9:42:leak_file_system:Consider using 'with' for resource-allocating operations:UNDEFINED
+resource-leak-maybe:9:9:9:42:leak_file_system:Resource 'handle' opened without a context manager and never explicitly closed:UNDEFINED
+consider-using-with:15:6:15:44:leak_named_temp:Consider using 'with' for resource-allocating operations:UNDEFINED
+resource-leak-maybe:15:6:15:44:leak_named_temp:Resource 'tmp' opened without a context manager and never explicitly closed:UNDEFINED
+consider-using-with:21:9:21:42:manual_close:Consider using 'with' for resource-allocating operations:UNDEFINED
+

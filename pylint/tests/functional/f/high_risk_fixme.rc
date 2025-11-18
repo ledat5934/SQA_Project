@@ -1,0 +1,3 @@
+[MISCELLANEOUS]
+high-risk-fixme-rgx = (?i)(?:!!!|\\bbug\\b|\\bwrong\\b)
+

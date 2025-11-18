@@ -1,0 +1,3 @@
+[MASTER]
+optional-import-modules = totally_missing
+
